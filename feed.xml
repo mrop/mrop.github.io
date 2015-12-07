@@ -2,12 +2,12 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Software Engineer</title>
-    <description>This blogs is about my thoughts on software engineering and in particular  developing with Hippo. This is a  personal weblog. The opinions expressed here represent my own and not those  of my employer.  
+    <description>This blog is about my thoughts on software engineering and in particular  developing with Hippo. This is a  personal weblog. The opinions expressed here represent my own and not those  of my employer.  
 </description>
     <link>http://mrop.github.io/</link>
     <atom:link href="http://mrop.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 07 Dec 2015 22:42:35 +0100</pubDate>
-    <lastBuildDate>Mon, 07 Dec 2015 22:42:35 +0100</lastBuildDate>
+    <pubDate>Mon, 07 Dec 2015 22:44:48 +0100</pubDate>
+    <lastBuildDate>Mon, 07 Dec 2015 22:44:48 +0100</lastBuildDate>
     <generator>Jekyll v3.0.1</generator>
     
   </channel>
