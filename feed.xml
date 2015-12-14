@@ -2,13 +2,289 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Software Engineer</title>
-    <description>This blog is about my thoughts on software engineering and in particular  developing with Hippo. This is a  personal weblog. The opinions expressed here represent my own and not those  of my employer.  
+    <description>This blogs is about my thoughts on software engineering and in particular  developing with Hippo. This is a  personal weblog. The opinions expressed here represent my own and not those  of my employer.  
 </description>
     <link>http://mrop.github.io/</link>
     <atom:link href="http://mrop.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 07 Dec 2015 22:44:48 +0100</pubDate>
-    <lastBuildDate>Mon, 07 Dec 2015 22:44:48 +0100</lastBuildDate>
+    <pubDate>Mon, 14 Dec 2015 21:04:59 +0100</pubDate>
+    <lastBuildDate>Mon, 14 Dec 2015 21:04:59 +0100</lastBuildDate>
     <generator>Jekyll v3.0.1</generator>
+    
+      <item>
+        <title>Performance impact of undefined variable in EL 3.0</title>
+        <description>&lt;h3 id=&quot;introduction&quot;&gt;Introduction&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://www.google.nl&quot;&gt;Tomcat 8&lt;/a&gt; implements the &lt;a href=&quot;http://www.google.nl&quot;&gt;EL 3.0 Specs&lt;/a&gt;. One of the added features is “Static Field and Method Reference”. This feature evaluates expressions like &lt;code class=&quot;highlighter-rouge&quot;&gt;${Boolean.TRUE}&lt;/code&gt;.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;In some circumstances, this change triggers significant slow down.  (&lt;a href=&quot;https://tomcat.apache.org/migration-8.html#JavaServer_Pages_2.3&quot;&gt;Migration Guide Tomcat 8&lt;/a&gt; )&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;This blogpost:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;shows an experiment where this slow down can be observed clearly&lt;/li&gt;
+  &lt;li&gt;suggests ways to improve the performance&lt;/li&gt;
+  &lt;li&gt;provides background why this slow down occurs; and&lt;/li&gt;
+  &lt;li&gt;suggest some ways to find out that “Static Field and Method Reference” actually is causing the slow down.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;experiment&quot;&gt;Experiment&lt;/h3&gt;
+
+&lt;p&gt;In this experiment two Hippo components ( could essentially be servlets as well ) are compared. Both set 200 request attributes. One component fills them with &lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt; the other one with a random value:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;UUID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;randomUUID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;toString&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The experiment compares the performance with performance tests created in &lt;a href=&quot;http://gatling.io/#/&quot;&gt;Gatling&lt;/a&gt;. See the &lt;a href=&quot;https://github.com/mrop/undefinedvariablesdemo&quot;&gt;demo project on github&lt;/a&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;defined-variables--these-values-look-good--&quot;&gt;200 Defined variables ( These values look good ) :&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;See &lt;a href=&quot;http://mrop.github.io/undefinedvariablesdemo/results/definedvariablessimulation-1448660262189/index.html&quot;&gt;Full report&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;The mean response time is 5 ms.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/defined.png&quot; alt=&quot;Performance with defined variables&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;undefined-variables--these-clearly-dont-&quot;&gt;200 Undefined variables ( These clearly don’t ):&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;See &lt;a href=&quot;http://mrop.github.io/undefinedvariablesdemo/results/undefinedvariablessimulation-1448660371839/index.html&quot;&gt;Full report&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;The mean reponse time is 25890 ms.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/undefined.png&quot; alt=&quot;Performance with undefined variables&quot; title=&quot;Undefined Variables&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;solution&quot;&gt;Solution&lt;/h3&gt;
+
+&lt;p&gt;Possible solutions are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Provide scope to attributes that could possible be undefined;&lt;/li&gt;
+  &lt;li&gt;Make sure attributes cannot be undefined; or&lt;/li&gt;
+  &lt;li&gt;Use the parallel class loader&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;There are three ways a variable in an el expression could be undefined:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://docs.oracle.com/javaee/5/jstl/1.1/docs/tlddocs/&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;c:set&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://tomcat.apache.org/tomcat-8.0-doc/servletapi/javax/servlet/ServletRequest.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;javax.servlet.ServletRequest.setAttribute&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.oracle.com/cd/E19159-01/819-3669/bnalj/index.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;%@ attribute %&lt;/code&gt; of custom tags&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h5 id=&quot;cset&quot;&gt;c:set&lt;/h5&gt;
+
+&lt;p&gt;A variable will be undefined if in the following snippet copyright is &lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt; ( The variable will have page scope by default )&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;c:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;copyright&quot;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;${document.copyright}&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h5 id=&quot;setattribute&quot;&gt;setAttribute&lt;/h5&gt;
+
+&lt;p&gt;A variable can also be undefined if in the following snippet &lt;code class=&quot;highlighter-rouge&quot;&gt;document&lt;/code&gt; is &lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt; ( The variable will have request scope by default )&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setAttribute&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;attribute1&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h5 id=&quot;attributes-of-custom-jsp-tags&quot;&gt;Attributes of custom jsp tags&lt;/h5&gt;
+
+&lt;p&gt;At last ( easy to miss ) a variable can be undefined if an attribute of a custom tag is set to &lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt;. E.g. when in the following snippet document is &lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt; ( The variable will have page scope by default )&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hippo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;gogreen:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copyright&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;${document}&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;%&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;@&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;document&quot;&lt;/span&gt; 
+	&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;com.onehippo.gogreen.beans.BaseDocument&quot;&lt;/span&gt; 
+	&lt;span class=&quot;n&quot;&gt;rtexprvalue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;true&quot;&lt;/span&gt; 
+	&lt;span class=&quot;n&quot;&gt;required&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;false&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;provide-scope&quot;&gt;Provide Scope&lt;/h4&gt;
+
+&lt;p&gt;One solution is to scope all variables that could possibly be “undefined” in any EL expression as described in the &lt;a href=&quot;https://tomcat.apache.org/migration-8.html#JavaServer_Pages_2.3&quot;&gt;Migration Guide of Tomcat 8&lt;/a&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;c:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;undefined&quot;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;${null}&quot;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scope&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;page&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;c:&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;test&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;${pageScope.undefined}&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;c:&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Downside is that if you use elvariables in  your IDE like&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;%--&lt;/span&gt;&lt;span class=&quot;nd&quot;&gt;@elvariable&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;document&quot;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;com.onehippo.gogreen.beans.NewsDocument&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--%&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the autocomplete functionality will be lost.&lt;/p&gt;
+
+&lt;h4 id=&quot;prevent-nullability&quot;&gt;Prevent nullability&lt;/h4&gt;
+
+&lt;p&gt;Another solution is to make sure that variables cannot be null. One solution might be to use the &lt;a href=&quot;https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html&quot;&gt;Optional&lt;/a&gt; introduced in java 8.&lt;/p&gt;
+
+&lt;h4 id=&quot;use-the-parallel-classloader&quot;&gt;Use the parallel classloader&lt;/h4&gt;
+
+&lt;p&gt;Use the Parallel ClassLoader by adding the following element to the context element in your context.xml:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;Loader&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;loaderClass=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;org.apache.catalina.loader.ParallelWebappClassLoader&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;See the &lt;a href=&quot;https://github.com/mrop/undefinedvariablesdemo/tree/ParallelClassLoader&quot;&gt;Parallel Classloader branch&lt;/a&gt; in the demo project.&lt;/p&gt;
+
+&lt;h3 id=&quot;analysis&quot;&gt;Analysis&lt;/h3&gt;
+
+&lt;p&gt;How do you know your site has slowed down because of this issue ? Most probably you’ll see loads of others warning that are caused by an inaccessable classloader and the number of concurrent requests ( The number of concurrent users rapidly increases ).&lt;/p&gt;
+
+&lt;h4 id=&quot;stackdump&quot;&gt;Stackdump&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Create a stackdump using jstack: jstack [pid] &amp;gt; dump&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;investigate the dump. If you find all threads waiting for the classloader thread, it’s very like caused by this problem.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;analysis-tools&quot;&gt;Analysis tools&lt;/h4&gt;
+&lt;ul&gt;
+  &lt;li&gt;Use an analysis tool like &lt;a href=&quot;https://zeroturnaround.com/software/xrebel/&quot;&gt;XRebel&lt;/a&gt; or in the case of Hippo switch on &lt;a href=&quot;http://www.onehippo.org/library/concepts/request-handling/hst-page-diagnostics.html&quot;&gt;page diagnostics&lt;/a&gt;. It will give a indication of which jsp’s / tag files are causing the problem.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;find-instances-of-undefined-variables-at-runtime&quot;&gt;Find instances of undefined variables at runtime&lt;/h4&gt;
+
+&lt;h5 id=&quot;logging&quot;&gt;Logging&lt;/h5&gt;
+
+&lt;p&gt;To find instances of undefined variables at runtime, one could add an additional &lt;code class=&quot;highlighter-rouge&quot;&gt;ElResolver&lt;/code&gt;. This &lt;code class=&quot;highlighter-rouge&quot;&gt;ELResolver&lt;/code&gt; only reports if a variable is undefined at runtime. In order to see this in action:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;git clone clone the &lt;a href=&quot;https://github.com/mrop/reportundefinedvariables&quot;&gt;reportundefinedvariables&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;checkout the &lt;a href=&quot;https://github.com/mrop/reportundefinedvariables/releases/tag/reportundefinedvariables-1.0&quot;&gt;release-1.0&lt;/a&gt; or download the source files&lt;/li&gt;
+  &lt;li&gt;mvn clean install&lt;/li&gt;
+  &lt;li&gt;git clone the &lt;a href=&quot;https://github.com/mrop/undefinedvariablesdemo&quot;&gt;undefinedvariablesdemo project&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;checkout the &lt;a href=&quot;https://github.com/mrop/undefinedvariablesdemo/tree/ParallelClassLoader&quot;&gt;UndefinedVariablesReporter Branch&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;mvn clean install;mvn -Pcargo.run&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For every undefined variable you’ll now see:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;Variable with name:requestAttribute197 is not defined, 
+trying to look name on classpath&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h5 id=&quot;debugging&quot;&gt;Debugging&lt;/h5&gt;
+
+&lt;p&gt;Now you can also add a breakpoint at &lt;a href=&quot;https://github.com/mrop/reportundefinedvariables/blob/332bd2affbe585a93e54a2d787cf61277e7cfea6/src/main/java/org/onehippo/reportundefinedvariables/reporter/LoggingUndefinedVariableReporter.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;org.onehippo.reportundefinedvariables.reporter.LoggingUndefinedVariableReporter#report&lt;/code&gt;&lt;/a&gt;. In combination with jsp debugging this will make you spot all instances of this problem very quickly.&lt;/p&gt;
+
+&lt;h3 id=&quot;background&quot;&gt;Background&lt;/h3&gt;
+
+&lt;p&gt;Each time an expression cannot be evaluated within session, request or page scope or cannot be evaluated as the name of an imported class, it will try to lookup the variable as a name of a class on the classpath. This causes slowdown, because all threads are waiting for the classloader thread.&lt;/p&gt;
+
+&lt;p&gt;See &lt;a href=&quot;http://grepcode.com/file/repo1.maven.org/maven2/org.apache.tomcat/tomcat-jsp-api/8.0.15/javax/servlet/jsp/el/ScopedAttributeELResolver.java&quot;&gt;javax.servlet.jsp.el.ScopedAttributeELResolver.getValue()&lt;/a&gt;&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;table style=&quot;border-spacing: 0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td class=&quot;gutter gl&quot; style=&quot;text-align: right&quot;&gt;&lt;pre class=&quot;lineno&quot;&gt;1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;More&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ELContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;property&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NullPointerException&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;base&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setPropertyResolved&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;property&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;property&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;key&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;property&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;toString&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;PageContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;page&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PageContext&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;
+                    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getContext&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;JspContext&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;page&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;findAttribute&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;c1&quot;&gt;// This might be the name of an imported class&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;ImportHandler&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;importHandler&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getImportHandler&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;importHandler&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;importHandler&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;resolveClass&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                        &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ELClass&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+                    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                        &lt;span class=&quot;c1&quot;&gt;// This might be the name of an imported &lt;/span&gt;
+			&lt;span class=&quot;c1&quot;&gt;// static field&lt;/span&gt;
+                        &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;importHandler&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;resolveStatic&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                            &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                                &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getField&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;catch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IllegalArgumentException&lt;/span&gt; 
+					&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IllegalAccessException&lt;/span&gt; 	
+					&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NoSuchFieldException&lt;/span&gt; 
+					&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SecurityException&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                                &lt;span class=&quot;c1&quot;&gt;// Most (all?) of these should have been&lt;/span&gt;
+                                &lt;span class=&quot;c1&quot;&gt;// prevented by the checks when &lt;/span&gt;
+				&lt;span class=&quot;c1&quot;&gt;// the import was defined.&lt;/span&gt;
+                            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+                        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+                    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+                &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+ &lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+</description>
+        <pubDate>Tue, 01 Dec 2015 16:20:26 +0100</pubDate>
+        <link>http://mrop.github.io/jsp/tomcat/2015/12/01/Performance-impact-of-undefined-variables.html</link>
+        <guid isPermaLink="true">http://mrop.github.io/jsp/tomcat/2015/12/01/Performance-impact-of-undefined-variables.html</guid>
+        
+        
+        <category>jsp</category>
+        
+        <category>tomcat</category>
+        
+      </item>
     
   </channel>
 </rss>
