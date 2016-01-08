@@ -40,10 +40,6 @@
         
           
         
-          
-        
-          
-        
       </div>
     </nav>
 
@@ -68,6 +64,10 @@
 
 <blockquote>
   <p>In some circumstances, this change triggers significant slow down.  (<a href="https://tomcat.apache.org/migration-8.html#JavaServer_Pages_2.3">Migration Guide Tomcat 8</a> )</p>
+</blockquote>
+
+<blockquote>
+  <p>When using JSPs in Tomcat 8, we strongly recommend using requestScope when using variables in JSPs. Not doing so can result in bad performance! This may even cause your site to go down. (<a href="http://www.onehippo.org/library/about/using-tomcat-8.html">Hippo Documentation: Using Tomcat 8</a>)</p>
 </blockquote>
 
 <p>This blogpost:</p>
